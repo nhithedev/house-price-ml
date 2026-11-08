@@ -1,0 +1,98 @@
+{
+  "1": {
+    "name": "Chuẩn hoá cột, tách địa chỉ, chuẩn hoá tỉnh/thành",
+    "rows_in": 30229,
+    "rows_out": 30218,
+    "removed": 11,
+    "notes": {
+      "bỏ vì tỉnh/thành không nhận diện được": 9,
+      "bỏ vì địa chỉ thiếu cấp quận/huyện": 2,
+      "số tỉnh/thành sau chuẩn hoá": 59,
+      "dòng có tên tỉnh được sửa so với bản gốc": 842
+    }
+  },
+  "2": {
+    "name": "Loại bản ghi trùng gần",
+    "rows_in": 30218,
+    "rows_out": 29976,
+    "removed": 242,
+    "notes": {
+      "trùng tuyệt đối trong dữ liệu gốc": 0,
+      "trùng theo khoá lỏng (địa chỉ+diện tích+giá), KHÔNG xoá": 2699,
+      "trùng theo khoá chặt (bị xoá)": 242
+    }
+  },
+  "3": {
+    "name": "Loại ngoại lai / bản ghi vô lý",
+    "rows_in": 29976,
+    "rows_out": 29650,
+    "removed": 326,
+    "notes": {
+      "bỏ vì giá/m² ngoài 10-400 triệu": 175,
+      "bỏ vì diện tích ngoài 10-300 m²": 144,
+      "bỏ vì dưới 4 m² mỗi phòng ngủ": 7
+    }
+  },
+  "4": {
+    "name": "Sửa số đo bất thường thành thiếu",
+    "rows_in": 29650,
+    "rows_out": 29650,
+    "removed": 0,
+    "notes": {
+      "mặt tiền > 30 m hoặc > nửa diện tích -> thiếu": 170,
+      "đường vào > 40 m -> thiếu": 148
+    }
+  },
+  "5": {
+    "name": "Thêm đặc trưng dẫn xuất",
+    "rows_in": 29650,
+    "rows_out": 29650,
+    "removed": 0,
+    "notes": {
+      "cột mới": "dien_tich_moi_tang, chieu_sau_uoc_tinh, so_phong_tam_tren_phong_ngu",
+      "có sẵn từ bước 1": "la_du_an (địa chỉ bắt đầu bằng 'Dự án')"
+    }
+  },
+  "6": {
+    "name": "Chia train/val/test",
+    "rows_in": 29650,
+    "rows_out": 29650,
+    "removed": 0,
+    "notes": {
+      "train/val/test": [
+        20752,
+        4449,
+        4449
+      ],
+      "seed": 42,
+      "giá/m² trung vị (train/val/test)": [
+        103.3,
+        101.2,
+        103.4
+      ],
+      "tỷ lệ 5 tỉnh lớn nhất": {
+        "train": {
+          "Hồ Chí Minh": 0.394,
+          "Hà Nội": 0.351,
+          "Bình Dương": 0.054,
+          "Đà Nẵng": 0.047,
+          "Đồng Nai": 0.027
+        },
+        "val": {
+          "Hồ Chí Minh": 0.394,
+          "Hà Nội": 0.35,
+          "Bình Dương": 0.055,
+          "Đà Nẵng": 0.047,
+          "Đồng Nai": 0.027
+        },
+        "test": {
+          "Hồ Chí Minh": 0.394,
+          "Hà Nội": 0.351,
+          "Bình Dương": 0.054,
+          "Đà Nẵng": 0.047,
+          "Đồng Nai": 0.027
+        }
+      }
+    }
+  }
+}

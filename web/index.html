@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dự đoán giá nhà Việt Nam</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1>Dự đoán giá nhà VN</h1>
+    <p class="sub">Nhập thông tin căn nhà để ước tính giá</p>
+  </header>
+
+  <div class="grid">
+    <form id="form" class="card" autocomplete="off">
+      <h2>Thông tin căn nhà</h2>
+
+      <label>Tỉnh / Thành phố
+        <select id="tinh" required></select>
+      </label>
+      <div class="note" id="tinhNote" hidden></div>
+      <div class="row">
+        <label>Quận / Huyện
+          <select id="quan" required></select>
+        </label>
+        <label>Phường / Xã
+          <select id="phuong"></select>
+        </label>
+      </div>
+
+      <div class="row">
+        <label>Diện tích (m²)
+          <input id="dt" type="number" min="10" max="300" step="0.5" required>
+        </label>
+        <label>Số phòng ngủ
+          <select id="pn"></select>
+        </label>
+      </div>
+
+      <details>
+        <summary>Thông tin thêm <span class="muted small">(không bắt buộc, càng đầy đủ càng chính xác)</span></summary>
+        <div class="row">
+          <label>Số tầng
+            <input id="tang" type="number" min="1" max="12" step="1" placeholder="Không rõ">
+          </label>
+          <label>Số phòng tắm
+            <input id="pt" type="number" min="1" max="9" step="1" placeholder="Không rõ">
+          </label>
+        </div>
+        <div class="row">
+          <label>Mặt tiền (m)
+            <input id="mt" type="number" min="1" max="30" step="0.1" placeholder="Không rõ">
+          </label>
+          <label>Đường vào (m)
+            <input id="dv" type="number" min="1" max="40" step="0.5" placeholder="Không rõ">
+          </label>
+        </div>
+        <div class="row">
+          <label>Giấy tờ pháp lý
+            <select id="phaply"></select>
+          </label>
+          <label>Nội thất
+            <select id="noithat"></select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Hướng nhà
+            <select id="huong"></select>
+          </label>
+          <label class="check"><input id="duan" type="checkbox"> Nhà thuộc dự án</label>
+        </div>
+      </details>
+
+      <button type="submit">Dự đoán giá</button>
+    </form>
+
+    <section class="card result" id="result" aria-live="polite">
+      <h2>Kết quả</h2>
+      <div id="empty" class="muted">Chọn thông tin và bấm “Dự đoán giá”.</div>
+      <div id="out" hidden>
+        <div class="big"><span id="rPrice">–</span> <small>triệu/m²</small></div>
+        <div class="total">Tổng giá ước tính: <b id="rTotal">–</b> tỷ đồng</div>
+        <div class="range muted" id="rRange"></div>
+        <div class="cmp">
+          <div class="cmp-head"><span id="rBaseLabel">So với trung vị khu vực</span><b id="rDelta"></b></div>
+          <div class="bar"><i id="barMark"></i></div>
+          <div class="muted small" id="rBase"></div>
+        </div>
+        <div class="note warn" id="rWarn" hidden></div>
+        <p class="badge" id="rSource"></p>
+      </div>
+    </section>
+  </div>
+
+  <section class="card" id="models" hidden>
+    <h2>So sánh mô hình <span class="muted small" id="modelsNote"></span></h2>
+    <table>
+      <thead><tr><th>Mô hình</th><th>MAE</th><th>RMSE</th><th>R²</th><th>MAPE</th></tr></thead>
+      <tbody id="modelRows"></tbody>
+    </table>
+    <p class="muted small">MAE và RMSE tính bằng triệu/m². MAPE là sai số tương đối trung bình.</p>
+  </section>
+
+  <footer class="muted small">Nguồn dữ liệu: vietnam_housing_dataset.csv</footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
