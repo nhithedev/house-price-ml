@@ -8,6 +8,15 @@
       "bỏ vì tỉnh/thành không nhận diện được": 9,
       "bỏ vì địa chỉ thiếu cấp quận/huyện": 2,
       "số tỉnh/thành sau chuẩn hoá": 59,
+      "quận/huyện (theo tỉnh) trước -> sau khi hợp nhất cách viết": [
+        339,
+        264
+      ],
+      "phường/xã (theo tỉnh, quận) trước -> sau khi hợp nhất cách viết": [
+        1657,
+        1487
+      ],
+      "số dòng có tên quận/phường được hợp nhất": 480,
       "dòng có tên tỉnh được sửa so với bản gốc": 842
     }
   },
@@ -25,40 +34,43 @@
   "3": {
     "name": "Loại ngoại lai / bản ghi vô lý",
     "rows_in": 29976,
-    "rows_out": 29650,
-    "removed": 326,
+    "rows_out": 29601,
+    "removed": 375,
     "notes": {
       "bỏ vì giá/m² ngoài 10-400 triệu": 175,
       "bỏ vì diện tích ngoài 10-300 m²": 144,
-      "bỏ vì dưới 4 m² mỗi phòng ngủ": 7
+      "bỏ vì dưới 4 m² mỗi phòng ngủ": 7,
+      "bỏ vì phòng tắm nhiều hơn phòng ngủ quá 2": 24,
+      "bỏ vì phòng ngủ > 3 × số tầng + 3": 25
     }
   },
   "4": {
-    "name": "Sửa số đo bất thường thành thiếu",
-    "rows_in": 29650,
-    "rows_out": 29650,
-    "removed": 0,
+    "name": "Sửa số đo bất thường thành thiếu; bỏ chiều sâu vô lý",
+    "rows_in": 29601,
+    "rows_out": 29576,
+    "removed": 25,
     "notes": {
-      "mặt tiền > 30 m hoặc > nửa diện tích -> thiếu": 170,
-      "đường vào > 40 m -> thiếu": 148
+      "mặt tiền > 30 m hoặc > nửa diện tích -> thiếu": 169,
+      "đường vào > 40 m -> thiếu": 148,
+      "bỏ vì chiều sâu ước tính < 3 m (diện tích / mặt tiền)": 25
     }
   },
   "5": {
     "name": "Chia train/val/test",
-    "rows_in": 29650,
-    "rows_out": 29650,
+    "rows_in": 29576,
+    "rows_out": 29576,
     "removed": 0,
     "notes": {
       "train/val/test": [
-        20752,
-        4449,
-        4449
+        20702,
+        4437,
+        4437
       ],
       "seed": 42,
       "giá/m² trung vị (train/val/test)": [
-        103.3,
-        101.2,
-        103.4
+        103.1,
+        103.1,
+        103.5
       ],
       "tỷ lệ 5 tỉnh lớn nhất": {
         "train": {
@@ -71,8 +83,8 @@
         "val": {
           "Hồ Chí Minh": 0.394,
           "Hà Nội": 0.35,
-          "Bình Dương": 0.055,
-          "Đà Nẵng": 0.047,
+          "Bình Dương": 0.054,
+          "Đà Nẵng": 0.048,
           "Đồng Nai": 0.027
         },
         "test": {

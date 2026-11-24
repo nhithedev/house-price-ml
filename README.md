@@ -2,7 +2,7 @@
 
 Dự án Machine Learning: nhập thông tin một căn nhà (tỉnh, quận, phường, diện tích, số tầng...) và mô hình ước tính **giá bán theo triệu đồng/m²**. Có kèm một trang web để thử trực tiếp.
 
-**Kết quả tóm tắt:** mô hình tốt nhất (Gradient Boosting) dự đoán đúng trong khoảng ±17% so với giá thật, và giải thích được khoảng 80% sự biến động của giá (R² = 0,80) trên dữ liệu chưa từng thấy.
+**Kết quả tóm tắt:** mô hình tốt nhất (Gradient Boosting) dự đoán đúng trong khoảng ±17% so với giá thật, và giải thích được khoảng 82% sự biến động của giá (R² = 0,82) trên dữ liệu chưa từng thấy.
 
 ## Mục lục
 
@@ -30,7 +30,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-**Lưu ý quan trọng:** repo **không chứa file mô hình** (`*.joblib`, vì có file nặng 545 MB). Lần đầu bạn cần tạo chúng:
+**Lưu ý quan trọng:** repo **không chứa file mô hình** (`*.joblib`, vì có file nặng 544 MB). Lần đầu bạn cần tạo chúng:
 
 ```bash
 python -m src.preprocess          # làm sạch dữ liệu (vài giây)
@@ -69,11 +69,11 @@ Dữ liệu thô có nhiều lỗi: địa chỉ viết lộn xộn, tin đăng 
 | Bước | Làm gì | File ra | Số dòng |
 |---|---|---|---|
 | (gốc) | | `vietnam_housing_dataset.csv` | 30.229 |
-| 1. Chuẩn hoá | Đổi tên cột; tách địa chỉ thành tỉnh / quận / phường / đường; sửa tên tỉnh viết sai ("Hà Nội.", "TP Hồ Chí Minh"...); tính giá/m². Bỏ 11 dòng địa chỉ không xác định được tỉnh | `01_standardized.csv` | 30.218 |
+| 1. Chuẩn hoá | Đổi tên cột; tách địa chỉ thành tỉnh / quận / phường / đường; sửa tên tỉnh viết sai ("Hà Nội.", "TP Hồ Chí Minh"...); tính giá/m²; hợp nhất các cách viết khác nhau của cùng một quận/phường ("Dĩ An" và "Thành phố Dĩ An"). Bỏ 11 dòng địa chỉ không xác định được tỉnh | `01_standardized.csv` | 30.218 |
 | 2. Loại trùng | Bỏ các tin đăng lại (giống nhau ở địa chỉ, diện tích, giá, số tầng, số phòng, mặt tiền, đường vào); giữ bản đầy đủ nhất | `02_deduplicated.csv` | 29.976 |
-| 3. Loại ngoại lai | Bỏ giá/m² ngoài 10–400 triệu, diện tích ngoài 10–300 m², nhà có dưới 4 m² mỗi phòng ngủ | `03_filtered.csv` | 29.650 |
-| 4. Sửa số đo | Mặt tiền > 30 m hoặc đường vào > 40 m là không thể đúng, chuyển thành "thiếu" thay vì xoá cả dòng | `04_values_fixed.csv` | 29.650 |
-| 5. Chia tập | Chia 70% **train** (học) / 15% **val** (chọn mô hình) / 15% **test** (chấm điểm cuối), phân tầng theo tỉnh và chia theo nhóm tin đăng giống nhau để tránh rò rỉ | `data/splits/` | 20.752 / 4.449 / 4.449 |
+| 3. Loại ngoại lai | Bỏ giá/m² ngoài 10–400 triệu, diện tích ngoài 10–300 m², nhà có dưới 4 m² mỗi phòng ngủ, phòng tắm nhiều hơn phòng ngủ quá 2, phòng ngủ vượt 3 × số tầng + 3 | `03_filtered.csv` | 29.601 |
+| 4. Sửa số đo | Mặt tiền > 30 m hoặc đường vào > 40 m là không thể đúng, chuyển thành "thiếu" thay vì xoá cả dòng; sau đó bỏ 25 dòng có chiều sâu ước tính (diện tích ÷ mặt tiền) dưới 3 m | `04_values_fixed.csv` | 29.576 |
+| 5. Chia tập | Chia 70% **train** (học) / 15% **val** (chọn mô hình) / 15% **test** (chấm điểm cuối), phân tầng theo tỉnh và chia theo nhóm tin đăng giống nhau để tránh rò rỉ | `data/splits/` | 20.702 / 4.437 / 4.437 |
 
 
 **Phần xử lý còn lại nằm trong mô hình** (`src/features.py`):
@@ -99,11 +99,11 @@ Cả bốn dùng chung một pipeline đặc trưng, chỉ khác bước dự đ
 
 | Mô hình | Số cấu hình thử | Tham số chọn |
 |---|---|---|
-| Ridge | 6 | `alpha` = 1 |
+| Ridge | 6 | `alpha` = 0,3 |
 | Random Forest | 9 | 300 cây, `min_samples_leaf` = 1, `max_features` = 0,6 |
-| Gradient Boosting | 20 | `learning_rate` = 0,05, `max_leaf_nodes` = 255, `l2_regularization` = 1 |
+| Gradient Boosting | 20 | `learning_rate` = 0,1, `max_leaf_nodes` = 63, `l2_regularization` = 1 |
 
-Lưu ý: `max_leaf_nodes` = 255 là giá trị lớn nhất trong lưới, nên chưa biết giá trị lớn hơn có tốt hơn không (mức giảm sai số giữa các mức đã nhỏ dần: MAE val 16,65 ở 127 và 16,57 ở 255).
+Lưu ý: `alpha` = 0,3 (Ridge) và `learning_rate` = 0,1 (Gradient Boosting) nằm ở biên lưới, nhưng chênh lệch với giá trị kế bên rất nhỏ (MAE val 18,41 so với 18,43; 16,11 so với 16,13). `max_leaf_nodes` = 63 nằm giữa lưới và là điểm tối ưu rõ.
 
 
 ---
@@ -114,21 +114,21 @@ Lưu ý: `max_leaf_nodes` = 255 là giá trị lớn nhất trong lưới, nên 
 
 | Mô hình | MAE (triệu/m²) | R² | MAPE |
 |---|---|---|---|
-| Trung vị (mốc) | 44,9 | −0,01 | 65,3% |
-| Ridge | 18,8 | 0,766 | 19,5% |
-| Random Forest | 16,9 | 0,796 | 17,6% |
-| **Gradient Boosting** | **16,8** | **0,801** | **16,9%** |
+| Trung vị (mốc) | 45,1 | −0,01 | 66,0% |
+| Ridge | 18,9 | 0,769 | 20,0% |
+| Random Forest | 16,7 | 0,806 | 17,9% |
+| **Gradient Boosting** | **16,5** | **0,819** | **17,4%** |
 
-Gradient Boosting hơn Ridge có ý nghĩa thống kê. So với Random Forest, chênh lệch rất nhỏ (MAE 0,12 triệu/m², khoảng tin cậy chồng lên nhau) nên chưa kết luận được mô hình nào tốt hơn. Gradient Boosting được chọn vì thắng trên val và file mô hình nhẹ hơn nhiều (14 MB so với 545 MB).
+Gradient Boosting hơn Ridge có ý nghĩa thống kê. So với Random Forest, chênh lệch rất nhỏ (MAE 0,12 triệu/m², khoảng tin cậy chồng lên nhau) nên chưa kết luận được mô hình nào tốt hơn. Gradient Boosting được chọn vì thắng trên val và file mô hình nhẹ hơn nhiều (3,7 MB so với 544 MB).
 
 Quy đổi sang tổng giá cả căn (nhân với diện tích), trên cùng tập test:
 
 | Mô hình | MAE (tỷ đồng) | RMSE (tỷ đồng) | R² |
 |---|---|---|---|
 | Mốc: trung vị giá cả căn | 1,85 | 2,22 | 0,000 |
-| Ridge | 1,04 | 1,40 | 0,599 |
-| Random Forest | 0,93 | 1,28 | 0,665 |
-| **Gradient Boosting** | **0,92** | **1,27** | **0,673** |
+| Ridge | 1,05 | 1,43 | 0,584 |
+| Random Forest | 0,92 | 1,28 | 0,665 |
+| **Gradient Boosting** | **0,91** | **1,24** | **0,685** |
 
 MAPE giữ nguyên như bảng trên (diện tích triệt tiêu trong tỉ số sai số). R² thấp hơn ở thang tỷ đồng vì giá cả căn bị chặn trong khoảng hẹp (1–11,5 tỷ), nên sai số còn lại chiếm tỉ lệ lớn hơn so với phương sai của nó.
 
@@ -180,7 +180,7 @@ python -m src.final_eval     # 5. chấm điểm cuối trên test -> results/te
 python -m src.make_options   # 6. cập nhật dữ liệu cho giao diện web
 ```
 
-- Bước 3 có thể rút gọn: `python -m src.train --only ridge hgb` (bỏ Random Forest, nhanh hơn và không tạo file 545 MB).
+- Bước 3 có thể rút gọn: `python -m src.train --only ridge hgb` (bỏ Random Forest, nhanh hơn và không tạo file 544 MB).
 - Các hạt giống ngẫu nhiên đã cố định nên kết quả chạy lại gần như trùng.
 - **Sau khi huấn luyện lại, hãy chạy lại bước 5** để điểm test được cập nhật cho mô hình mới. Tập test nên được coi là chỉ chấm một lần cho mỗi lần chốt mô hình; đừng chỉnh tham số dựa trên điểm test.
 

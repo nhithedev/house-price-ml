@@ -31,6 +31,9 @@ AREA_RANGE = (10, 300)         # m²
 MIN_AREA_PER_BEDROOM = 4       # m² / phòng ngủ
 MAX_FRONTAGE = 30              # m
 MAX_ROAD = 40                  # m
+MAX_BATH_OVER_BED = 2          # phòng tắm nhiều hơn phòng ngủ quá mức này -> vô lý
+MAX_BED_PER_FLOOR = 3          # phòng ngủ > 3 × số tầng + 3 -> vô lý
+MIN_DEPTH = 3                  # m: chiều sâu ước tính (diện tích / mặt tiền) nhỏ hơn mức này -> vô lý
 
 COLS = {"Address": "dia_chi", "Area": "dien_tich", "Frontage": "mat_tien",
         "Access Road": "duong_vao", "House direction": "huong_nha",
@@ -74,6 +77,52 @@ def canon_province(s):
         if len(p) >= 5 and k.startswith(p):
             return _PROV[p]
     return None
+
+
+_UNIT_PREFIX = re.compile(r"^(thành phố|thanh pho|tp\.?|quận|quan|q\.?|huyện|huyen|h\.?|thị xã|thi xa|tx\.?|"
+                          r"phường|phuong|p\.?|xã|xa|thị trấn|thi tran|tt\.?)\s+")
+
+
+def _clean_text(s):
+    """Chuẩn hoá Unicode (NFC), gộp khoảng trắng thừa."""
+    if pd.isna(s):
+        return s
+    return re.sub(r"\s+", " ", unicodedata.normalize("NFC", str(s))).strip()
+
+
+def _unit_key(s):
+    """Khoá so sánh tên quận/phường: chữ thường, bỏ tiền tố hành chính ('Thành phố Dĩ An' -> 'dĩ an')."""
+    if pd.isna(s):
+        return None
+    return _UNIT_PREFIX.sub("", _clean_text(s).lower())
+
+
+def unify_unit_names(df):
+    """Hợp nhất các cách viết khác nhau của cùng một quận/huyện hoặc phường/xã trong cùng tỉnh (cùng quận).
+
+    Chỉ khác tiền tố, hoa/thường, khoảng trắng hoặc mã hoá Unicode thì coi là một nơi; chọn cách viết phổ biến nhất
+    (hoà thì theo thứ tự chữ cái) làm tên chuẩn. Không bịa tên mới. Trả về (df, bảng các phép gộp)."""
+    df = df.copy()
+    merges = []
+    for col, scope in (("quan_huyen", ["tinh"]), ("phuong_xa", ["tinh", "quan_huyen"])):
+        df[col] = df[col].map(_clean_text)
+        key = df[col].map(_unit_key)
+        t = df[scope + [col]].assign(_k=key).dropna(subset=[col, "_k"])
+        cnt = t.groupby(scope + ["_k", col]).size().reset_index(name="n")
+        cnt = cnt.sort_values(["n", col], ascending=[False, True], kind="stable")
+        canon = cnt.drop_duplicates(scope + ["_k"]).rename(columns={col: "_canon"}).drop(columns="n")
+        m = df[scope + [col]].assign(_k=key).merge(canon, on=scope + ["_k"], how="left")
+        m.index = df.index
+        new = m["_canon"].where(m["_canon"].notna(), df[col])
+        changed = new != df[col]
+        if changed.any():
+            ch = pd.DataFrame({"cot": col, "tinh": df.loc[changed, "tinh"], "quan_huyen": df.loc[changed, "quan_huyen"],
+                               "ten_goc": df.loc[changed, col], "ten_chuan": new[changed]})
+            merges.append(ch.groupby(["cot", "tinh", "quan_huyen", "ten_goc", "ten_chuan"], dropna=False)
+                          .size().reset_index(name="so_dong"))
+        df[col] = new
+    out = pd.concat(merges, ignore_index=True) if merges else pd.DataFrame()
+    return df, out
 
 
 # ---------------------------------------------------------------- helpers
@@ -125,6 +174,10 @@ def step1_standardize():
     df = df[~drop]
     INTERIM.mkdir(parents=True, exist_ok=True)
     removed.to_csv(INTERIM / "01_removed.csv", index=False, encoding="utf-8-sig")
+    n_q0, n_w0 = df.groupby("tinh")["quan_huyen"].nunique().sum(), df.groupby(["tinh", "quan_huyen"])["phuong_xa"].nunique().sum()
+    df, merges = unify_unit_names(df)
+    merges.to_csv(INTERIM / "01_unit_merges.csv", index=False, encoding="utf-8-sig")
+    n_q1, n_w1 = df.groupby("tinh")["quan_huyen"].nunique().sum(), df.groupby(["tinh", "quan_huyen"])["phuong_xa"].nunique().sum()
     cols = ["dia_chi", "tinh", "quan_huyen", "phuong_xa", "duong", "la_du_an", "dien_tich", "mat_tien",
             "duong_vao", "huong_nha", "huong_ban_cong", "so_tang", "so_phong_ngu", "so_phong_tam",
             "phap_ly", "noi_that", "gia_ty", "gia_m2"]
@@ -133,6 +186,9 @@ def step1_standardize():
         "bỏ vì tỉnh/thành không nhận diện được": int(bad_prov.sum()),
         "bỏ vì địa chỉ thiếu cấp quận/huyện": int((too_short & ~bad_prov).sum()),
         "số tỉnh/thành sau chuẩn hoá": int(df["tinh"].nunique()),
+        "quận/huyện (theo tỉnh) trước -> sau khi hợp nhất cách viết": [int(n_q0), int(n_q1)],
+        "phường/xã (theo tỉnh, quận) trước -> sau khi hợp nhất cách viết": [int(n_w0), int(n_w1)],
+        "số dòng có tên quận/phường được hợp nhất": int(merges["so_dong"].sum()) if len(merges) else 0,
         "dòng có tên tỉnh được sửa so với bản gốc": int((df["dia_chi"].str.split(",").str[-1].str.strip()
                                                          != df["tinh"]).sum()),
     })
@@ -174,6 +230,10 @@ def step3_filter():
         (f"giá/m² ngoài {GIA_M2_RANGE[0]}-{GIA_M2_RANGE[1]} triệu", ~df["gia_m2"].between(*GIA_M2_RANGE)),
         (f"diện tích ngoài {AREA_RANGE[0]}-{AREA_RANGE[1]} m²", ~df["dien_tich"].between(*AREA_RANGE)),
         (f"dưới {MIN_AREA_PER_BEDROOM} m² mỗi phòng ngủ", df["dien_tich"] / df["so_phong_ngu"] < MIN_AREA_PER_BEDROOM),
+        (f"phòng tắm nhiều hơn phòng ngủ quá {MAX_BATH_OVER_BED}",
+         df["so_phong_tam"] > df["so_phong_ngu"] + MAX_BATH_OVER_BED),
+        (f"phòng ngủ > {MAX_BED_PER_FLOOR} × số tầng + {MAX_BED_PER_FLOOR}",
+         df["so_phong_ngu"] > MAX_BED_PER_FLOOR * df["so_tang"] + MAX_BED_PER_FLOOR),
     ]
     reason = pd.Series("", index=df.index)
     notes = {}
@@ -199,8 +259,13 @@ def step4_fix_values():
     bad = df["duong_vao"] > MAX_ROAD
     notes[f"đường vào > {MAX_ROAD} m -> thiếu"] = int(bad.sum())
     df.loc[bad, "duong_vao"] = np.nan
+    n0 = len(df)
+    shallow = (df["dien_tich"] / df["mat_tien"]) < MIN_DEPTH     # mặt tiền còn lại nhưng lô đất nông vô lý
+    notes[f"bỏ vì chiều sâu ước tính < {MIN_DEPTH} m (diện tích / mặt tiền)"] = int(shallow.sum())
+    df[shallow].to_csv(INTERIM / "04_removed.csv", index=False, encoding="utf-8-sig")
+    df = df[~shallow]
     _write(df, "04_values_fixed.csv")
-    _log(4, "Sửa số đo bất thường thành thiếu", len(df), len(df), notes)
+    _log(4, "Sửa số đo bất thường thành thiếu; bỏ chiều sâu vô lý", n0, len(df), notes)
 
 
 STEPS = {1: step1_standardize, 2: step2_deduplicate, 3: step3_filter, 4: step4_fix_values}
