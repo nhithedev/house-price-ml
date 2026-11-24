@@ -57,15 +57,14 @@ Ví dụ Windows: `set MODEL=ridge` rồi chạy `uvicorn`.
 
 - **File dùng:** `original-dataset/vietnam_housing_dataset.csv` — 30.229 tin rao bán nhà trên cả nước (chủ yếu Hồ Chí Minh và Hà Nội).
 - **Các cột:** địa chỉ, diện tích, mặt tiền, đường vào, hướng nhà, hướng ban công, số tầng, số phòng ngủ, số phòng tắm, pháp lý, nội thất và **giá (tỷ đồng, cho cả căn)**.
-- **Cái ta dự đoán:** giá trên mỗi m² = giá × 1000 / diện tích (triệu đồng/m²). Dùng giá/m² để so sánh công bằng giữa nhà to và nhà nhỏ.
-- Hai file khác trong `original-dataset/` (`VN_housing_dataset.csv`, `VN-housing-dataset-refined.csv`) là bộ dữ liệu cũ, **không còn được dùng**.
+- **Dự đoán:** giá trên mỗi m² = giá × 1000 / diện tích (triệu đồng/m²). Dùng giá/m² để so sánh công bằng giữa nhà to và nhà nhỏ.
 - **Điểm cần biết:** dữ liệu chỉ có nhà giá tối đa khoảng **11,5 tỷ** (99% dưới 10 tỷ). Mô hình vì vậy không dự đoán được biệt thự hay nhà cao cấp.
 
 ---
 
 ## 3. Tiền xử lý dữ liệu
 
-Dữ liệu thô có nhiều lỗi: địa chỉ viết lộn xộn, tin đăng trùng, số liệu vô lý. Việc làm sạch được chia thành **6 bước**, mỗi bước đọc file của bước trước và ghi ra một file riêng trong `data/interim/` để bạn mở ra xem được từng bước. Các dòng bị loại ở mỗi bước được lưu trong `*_removed.csv`, và thống kê nằm trong `data/interim/preprocessing_log.json`.
+Dữ liệu thô có nhiều lỗi: địa chỉ viết lộn xộn, tin đăng trùng, số liệu vô lý. Việc làm sạch được chia thành **5 bước** (4 bước làm sạch ghi vào `data/interim/`, bước 5 là chia tập). 
 
 | Bước | Làm gì | File ra | Số dòng |
 |---|---|---|---|
@@ -74,15 +73,11 @@ Dữ liệu thô có nhiều lỗi: địa chỉ viết lộn xộn, tin đăng 
 | 2. Loại trùng | Bỏ các tin đăng lại (giống nhau ở địa chỉ, diện tích, giá, số tầng, số phòng, mặt tiền, đường vào); giữ bản đầy đủ nhất | `02_deduplicated.csv` | 29.976 |
 | 3. Loại ngoại lai | Bỏ giá/m² ngoài 10–400 triệu, diện tích ngoài 10–300 m², nhà có dưới 4 m² mỗi phòng ngủ | `03_filtered.csv` | 29.650 |
 | 4. Sửa số đo | Mặt tiền > 30 m hoặc đường vào > 40 m là không thể đúng, chuyển thành "thiếu" thay vì xoá cả dòng | `04_values_fixed.csv` | 29.650 |
-| 5. Đặc trưng mới | Thêm vài cột tính bằng công thức: diện tích mỗi tầng, chiều sâu ước tính (diện tích ÷ mặt tiền), tỉ lệ phòng tắm trên phòng ngủ | `05_features.csv` | 29.650 |
-| 6. Chia tập | Chia 70% **train** (học) / 15% **val** (chọn mô hình) / 15% **test** (chấm điểm cuối) | `data/splits/` | 20.752 / 4.449 / 4.449 |
+| 5. Chia tập | Chia 70% **train** (học) / 15% **val** (chọn mô hình) / 15% **test** (chấm điểm cuối), phân tầng theo tỉnh và chia theo nhóm tin đăng giống nhau để tránh rò rỉ | `data/splits/` | 20.752 / 4.449 / 4.449 |
 
-Hai điểm đáng nói về bước loại trùng và chia tập:
 
-- **Không xoá mọi dòng "giống nhau".** Trong cùng một dự án chung cư có nhiều căn khác nhau nhưng giá niêm yết như nhau. Chỉ xoá khi cả cấu hình căn (tầng, phòng, mặt tiền, đường vào) cũng giống hệt.
-- **Chia tập có chống rò rỉ.** Các tin cùng địa chỉ + diện tích + giá luôn nằm chung một tập, nếu không mô hình "thấy" căn đó lúc học rồi gặp lại lúc thi, điểm sẽ cao giả. Ngoài ra, mỗi tập có tỉ lệ các tỉnh giống nhau.
-
-**Phần xử lý còn lại nằm trong mô hình** (`src/features.py`), vì chúng phải "học" từ tập train rồi áp lên val/test cho công bằng:
+**Phần xử lý còn lại nằm trong mô hình** (`src/features.py`):
+- diện tích đi vào mô hình dưới dạng `log(1 + diện tích)`;
 - điền giá trị thiếu bằng trung vị và thêm cột đánh dấu "ô này vốn thiếu";
 - mã hoá chữ thành số (one-hot) cho tỉnh, quận, phường, pháp lý, nội thất, hướng nhà; giá trị quá hiếm (dưới 20 lần) gộp chung;
 - học trên `log(giá/m²)` vì giá lệch về phía cao.
@@ -106,45 +101,42 @@ Cả bốn dùng chung một pipeline đặc trưng, chỉ khác bước dự đ
 |---|---|---|
 | Ridge | 6 | `alpha` = 1 |
 | Random Forest | 9 | 300 cây, `min_samples_leaf` = 1, `max_features` = 0,6 |
-| Gradient Boosting | 20 | `learning_rate` = 0,05, `max_leaf_nodes` = 127, `l2_regularization` = 1 |
+| Gradient Boosting | 20 | `learning_rate` = 0,05, `max_leaf_nodes` = 255, `l2_regularization` = 1 |
 
-Lưới tham số khai báo ở `src/models.py`; muốn thêm mô hình chỉ cần thêm vào đó.
+Lưu ý: `max_leaf_nodes` = 255 là giá trị lớn nhất trong lưới, nên chưa biết giá trị lớn hơn có tốt hơn không (mức giảm sai số giữa các mức đã nhỏ dần: MAE val 16,65 ở 127 và 16,57 ở 255).
+
 
 ---
 
-## 5. Kết quả và nằm ở đâu
+## 5. Kết quả
 
-### Điểm trên tập test (chưa từng dùng để chọn gì)
+### Điểm trên tập test 
 
 | Mô hình | MAE (triệu/m²) | R² | MAPE |
 |---|---|---|---|
 | Trung vị (mốc) | 44,9 | −0,01 | 65,3% |
-| Ridge | 18,7 | 0,766 | 19,4% |
-| Random Forest | 17,2 | 0,790 | 17,8% |
-| **Gradient Boosting** | **16,7** | **0,804** | **17,0%** |
+| Ridge | 18,8 | 0,766 | 19,5% |
+| Random Forest | 16,9 | 0,796 | 17,6% |
+| **Gradient Boosting** | **16,8** | **0,801** | **16,9%** |
 
-Cách đọc nhanh:
-- **MAE**: trung bình mô hình đoán lệch bao nhiêu triệu/m² (giá trung vị của dữ liệu khoảng 103). Càng thấp càng tốt.
-- **MAPE**: lệch trung bình bao nhiêu phần trăm so với giá thật. Càng thấp càng tốt.
+Gradient Boosting hơn Ridge có ý nghĩa thống kê. So với Random Forest, chênh lệch rất nhỏ (MAE 0,12 triệu/m², khoảng tin cậy chồng lên nhau) nên chưa kết luận được mô hình nào tốt hơn. Gradient Boosting được chọn vì thắng trên val và file mô hình nhẹ hơn nhiều (14 MB so với 545 MB).
+
+Quy đổi sang tổng giá cả căn (nhân với diện tích), trên cùng tập test:
+
+| Mô hình | MAE (tỷ đồng) | RMSE (tỷ đồng) | R² |
+|---|---|---|---|
+| Mốc: trung vị giá cả căn | 1,85 | 2,22 | 0,000 |
+| Ridge | 1,04 | 1,40 | 0,599 |
+| Random Forest | 0,93 | 1,28 | 0,665 |
+| **Gradient Boosting** | **0,92** | **1,27** | **0,673** |
+
+MAPE giữ nguyên như bảng trên (diện tích triệt tiêu trong tỉ số sai số). R² thấp hơn ở thang tỷ đồng vì giá cả căn bị chặn trong khoảng hẹp (1–11,5 tỷ), nên sai số còn lại chiếm tỉ lệ lớn hơn so với phương sai của nó.
+
+Chú thích:
+- **MAE**: trung bình mô hình đoán lệch bao nhiêu triệu/m² (giá trung vị của dữ liệu khoảng 103).
+- **MAPE**: lệch trung bình bao nhiêu phần trăm so với giá thật.
 - **R²**: mô hình giải thích được bao nhiêu phần sự khác nhau về giá giữa các căn. 0 là không hơn đoán trung vị, 1 là hoàn hảo.
 
-### Điều rút ra
-
-- Ba mô hình học được đều **vượt xa** việc đoán trung vị. Gradient Boosting hơn Ridge rõ ràng; so với Random Forest thì chênh lệch quá nhỏ để kết luận chắc.
-- **Yếu tố quyết định giá nhất: diện tích, tỉnh, quận.** Chỉ với tỉnh + quận + diện tích đã đạt R² ≈ 0,71. Số tầng và đường vào có ích; hướng nhà, nội thất, pháp lý gần như không đáng kể.
-- Mô hình đoán tốt nhất với nhà giá trung bình, kém hơn với nhà giá rất thấp và nhà rất nhỏ ở trung tâm Hà Nội (thường bị đoán thấp hơn giá thật).
-- R² riêng từng nhóm thấp hơn con số tổng (Hồ Chí Minh 0,75; Hà Nội 0,60; các tỉnh khác 0,74), vì một phần lớn chênh lệch giá nằm giữa các tỉnh với nhau.
-
-### File kết quả
-
-| Muốn xem | Mở file |
-|---|---|
-| Điểm số mọi mô hình (val và test, cả theo nhóm tỉnh, mọi cấu hình đã thử) | `server/models/metrics.json` |
-| Điểm test chi tiết: khoảng tin cậy 95%, sai số theo khoảng giá và diện tích, 8 ca sai nặng nhất | `results/test_results.json` |
-| Độ quan trọng từng đặc trưng; điểm khi bỏ từng nhóm đặc trưng | `results/analysis.json` |
-| Thống kê số dòng bị loại ở mỗi bước tiền xử lý | `data/interim/preprocessing_log.json` |
-| Các dòng bị loại ở bước 1, 2, 3 | `data/interim/01_removed.csv`, `02_removed.csv`, `03_removed.csv` |
-| Bảng so sánh trên trang web | chạy web, mục "So sánh mô hình" |
 
 ---
 
@@ -153,11 +145,11 @@ Cách đọc nhanh:
 ```
 original-dataset/   dữ liệu thô (chỉ vietnam_housing_dataset.csv được dùng)
 data/
-  interim/          kết quả từng bước tiền xử lý + log + các dòng bị loại
+  interim/          kết quả từng bước tiền xử lý (01-04) + log + các dòng bị loại
   splits/           train.csv, val.csv, test.csv
 src/
-  preprocess.py     tiền xử lý, bước 1-5
-  split.py          bước 6: chia train/val/test
+  preprocess.py     tiền xử lý, bước 1-4
+  split.py          bước 5: chia train/val/test
   features.py       pipeline đặc trưng dùng chung cho mọi mô hình
   models.py         danh sách mô hình và lưới tham số
   evaluate.py       các chỉ số đánh giá (MAE, RMSE, R², MAPE)
@@ -170,6 +162,7 @@ server/
   models/           mô hình đã huấn luyện (*.joblib, không có trong git) và metrics.json
 web/                giao diện (HTML + CSS + JS thuần, không cần build)
 results/            kết quả phân tích và đánh giá test (JSON)
+  audit/            kiểm tra độc lập: tái lập điểm test, kết quả ở thang tỷ đồng, biểu đồ thực tế vs dự đoán và phần dư
 ```
 
 ---
@@ -179,8 +172,8 @@ results/            kết quả phân tích và đánh giá test (JSON)
 Chạy theo thứ tự (từ thư mục gốc, đã kích hoạt `.venv`):
 
 ```bash
-python -m src.preprocess     # 1. tiền xử lý, bước 1-5 -> data/interim/
-python -m src.split          # 2. chia train/val/test -> data/splits/
+python -m src.preprocess     # 1. tiền xử lý, bước 1-4 -> data/interim/
+python -m src.split          # 2. chia train/val/test (bước 5) -> data/splits/
 python -m src.train          # 3. huấn luyện 4 mô hình, chọn tham số trên val (khoảng 15-20 phút)
 python -m src.analyze        # 4. phân tích đặc trưng (val) -> results/analysis.json
 python -m src.final_eval     # 5. chấm điểm cuối trên test -> results/test_results.json
@@ -192,11 +185,3 @@ python -m src.make_options   # 6. cập nhật dữ liệu cho giao diện web
 - **Sau khi huấn luyện lại, hãy chạy lại bước 5** để điểm test được cập nhật cho mô hình mới. Tập test nên được coi là chỉ chấm một lần cho mỗi lần chốt mô hình; đừng chỉnh tham số dựa trên điểm test.
 
 ---
-
-## 8. Hạn chế cần biết
-
-- Dữ liệu là **giá rao bán**, không phải giá giao dịch thực.
-- Dữ liệu **giới hạn ở khoảng 11,5 tỷ**, nên kết quả vượt mức này không đáng tin (giao diện có cảnh báo).
-- **Thiếu thông tin về loại nhà** (mặt phố, trong ngõ, biệt thự). Đây có vẻ là lý do chính mô hình đoán thấp với nhà nhỏ ở khu trung tâm Hà Nội.
-- Hồ Chí Minh và Hà Nội chiếm khoảng 75% dữ liệu; **43 trên 58 tỉnh có dưới 100 tin**, nên kết quả ở các tỉnh nhỏ chỉ mang tính tham khảo.
-- Dữ liệu không có ngày đăng nên chưa kiểm tra được mô hình theo thời gian (giá nhà thay đổi theo năm).

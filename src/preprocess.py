@@ -5,10 +5,9 @@
       -> 02_deduplicated.csv        loại bản ghi trùng gần (giữ bản đầy đủ nhất)
       -> 03_filtered.csv            loại bản ghi ngoại lai / vô lý
       -> 04_values_fixed.csv        giá trị đo đạc bất thường -> thiếu (NaN)
-      -> 05_features.csv            thêm đặc trưng dẫn xuất (luật cố định, không học từ dữ liệu)
     (rồi src/split.py chia train/val/test)
 
-Chạy:  python -m src.preprocess            # chạy cả 5 bước
+Chạy:  python -m src.preprocess            # chạy cả 4 bước
        python -m src.preprocess --only 3   # chỉ chạy bước 3 (cần có file bước 2)
 Đầu ra nằm ở data/interim/, kèm preprocessing_log.json và các file *_removed.csv để kiểm tra.
 """
@@ -20,8 +19,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
-from src.features import add_derived
 
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "original-dataset" / "vietnam_housing_dataset.csv"
@@ -206,18 +203,7 @@ def step4_fix_values():
     _log(4, "Sửa số đo bất thường thành thiếu", len(df), len(df), notes)
 
 
-# ---------------------------------------------------------------- bước 5
-def step5_features():
-    """Đặc trưng dẫn xuất bằng công thức cố định (không học tham số từ dữ liệu nên làm trước khi chia)."""
-    df = _read("04_values_fixed.csv")
-    df = add_derived(df)   # công thức dùng chung với pipeline mô hình (src/features.py)
-    _write(df, "05_features.csv")
-    _log(5, "Thêm đặc trưng dẫn xuất", len(df), len(df), {
-        "cột mới": "dien_tich_moi_tang, chieu_sau_uoc_tinh, so_phong_tam_tren_phong_ngu",
-        "có sẵn từ bước 1": "la_du_an (địa chỉ bắt đầu bằng 'Dự án')"})
-
-
-STEPS = {1: step1_standardize, 2: step2_deduplicate, 3: step3_filter, 4: step4_fix_values, 5: step5_features}
+STEPS = {1: step1_standardize, 2: step2_deduplicate, 3: step3_filter, 4: step4_fix_values}
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()

@@ -1,4 +1,4 @@
-"""Chia train / val / test từ data/interim/05_features.csv (bước 6 của tiền xử lý).
+"""Chia train / val / test từ data/interim/04_values_fixed.csv (bước 5 của tiền xử lý).
 
     python -m src.split
 
@@ -44,7 +44,7 @@ def load_splits():
 
 
 def main():
-    df = pd.read_csv(INTERIM / "05_features.csv", encoding="utf-8-sig")
+    df = pd.read_csv(INTERIM / "04_values_fixed.csv", encoding="utf-8-sig")
     train, val, test = split(df)
     SPLIT_DIR.mkdir(parents=True, exist_ok=True)
     for name, part in (("train", train), ("val", val), ("test", test)):
@@ -57,7 +57,7 @@ def main():
              "tỷ lệ 5 tỉnh lớn nhất": share}
     log_path = INTERIM / "preprocessing_log.json"
     log = json.loads(log_path.read_text(encoding="utf-8"))
-    log["6"] = {"name": "Chia train/val/test", "rows_in": len(df), "rows_out": len(df), "removed": 0, "notes": notes}
+    log["5"] = {"name": "Chia train/val/test", "rows_in": len(df), "rows_out": len(df), "removed": 0, "notes": notes}
     log_path.write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
     print(len(df), "->", len(train), len(val), len(test))
     for k, v in notes.items():

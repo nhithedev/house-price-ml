@@ -1,7 +1,7 @@
 """Đặc trưng và pipeline mô hình.
 
 Mô hình nhận DataFrame thô (các cột như trong data/splits/*.csv, hoặc dữ liệu form của web) và
-tự tính khoá địa lý + đặc trưng dẫn xuất bên trong pipeline, nên train và phục vụ dùng chung một đường.
+tự tính khoá địa lý + log diện tích bên trong pipeline, nên train và phục vụ dùng chung một đường.
 Mọi bước học từ dữ liệu (điền thiếu, mã hoá, chuẩn hoá) chỉ fit trên train.
 
     model = make_model(Ridge(alpha=10), kind="linear")   # kind="tree" bỏ chuẩn hoá
@@ -25,25 +25,14 @@ RAW_COLS = ["tinh", "quan_huyen", "phuong_xa", "la_du_an", "dien_tich", "mat_tie
 NUMERIC_RAW = ["la_du_an", "dien_tich", "mat_tien", "duong_vao", "so_tang", "so_phong_ngu", "so_phong_tam"]
 
 CAT_COLS = ["tinh", "quan_key", "phuong_key", "phap_ly", "noi_that", "huong_nha"]
-NUM_COLS = ["log_dien_tich", "mat_tien", "duong_vao", "so_tang", "so_phong_ngu", "so_phong_tam",
-            "dien_tich_moi_tang", "chieu_sau_uoc_tinh", "so_phong_tam_tren_phong_ngu", "la_du_an"]
-
-
-def add_derived(df: pd.DataFrame) -> pd.DataFrame:
-    """Đặc trưng dẫn xuất bằng công thức cố định (cũng được dùng ở bước 5 tiền xử lý)."""
-    df = df.copy()
-    df["dien_tich_moi_tang"] = (df["dien_tich"] / df["so_tang"]).round(2)
-    df["chieu_sau_uoc_tinh"] = (df["dien_tich"] / df["mat_tien"]).round(2)   # ≈ chiều sâu lô đất
-    df["so_phong_tam_tren_phong_ngu"] = (df["so_phong_tam"] / df["so_phong_ngu"]).round(2)
-    return df
+NUM_COLS = ["log_dien_tich", "mat_tien", "duong_vao", "so_tang", "so_phong_ngu", "so_phong_tam", "la_du_an"]
 
 
 def prepare(df: pd.DataFrame) -> pd.DataFrame:
     """Từ cột thô -> bảng đặc trưng (CAT_COLS + NUM_COLS)."""
     df = df.reindex(columns=RAW_COLS)
     df[NUMERIC_RAW] = df[NUMERIC_RAW].apply(pd.to_numeric, errors="coerce").astype(float)
-    df = add_derived(df)
-    df["log_dien_tich"] = np.log1p(df["dien_tich"])
+    df["log_dien_tich"] = np.log1p(df["dien_tich"])   # diện tích đi vào mô hình chỉ qua cột này
     # quận/huyện và phường/xã trùng tên giữa các tỉnh -> ghép khoá theo cấp trên
     df["quan_key"] = df["tinh"].astype(str) + "|" + df["quan_huyen"].astype(str)
     df["phuong_key"] = df["quan_key"] + "|" + df["phuong_xa"].astype(str)

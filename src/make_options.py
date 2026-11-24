@@ -21,7 +21,7 @@ def stat(g):
 
 
 def main():
-    d = pd.read_csv(ROOT / "data" / "interim" / "05_features.csv", encoding="utf-8-sig")
+    d = pd.read_csv(ROOT / "data" / "interim" / "04_values_fixed.csv", encoding="utf-8-sig")
     provinces = {}
     for t, gt in d.groupby("tinh"):
         districts = {}

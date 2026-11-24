@@ -44,16 +44,6 @@
     }
   },
   "5": {
-    "name": "Thêm đặc trưng dẫn xuất",
-    "rows_in": 29650,
-    "rows_out": 29650,
-    "removed": 0,
-    "notes": {
-      "cột mới": "dien_tich_moi_tang, chieu_sau_uoc_tinh, so_phong_tam_tren_phong_ngu",
-      "có sẵn từ bước 1": "la_du_an (địa chỉ bắt đầu bằng 'Dự án')"
-    }
-  },
-  "6": {
     "name": "Chia train/val/test",
     "rows_in": 29650,
     "rows_out": 29650,
